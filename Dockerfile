@@ -11,7 +11,7 @@ COPY . .
 
 USER node
 
-ENV PORT=3000
-EXPOSE 3000
+ENV PORT=3033
+EXPOSE 3033
 
 CMD ["node", "index.js"]
