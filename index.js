@@ -66,8 +66,31 @@ async function complete(systemMessage, userMessage, maxTokens) {
     return response.choices[0].message.content.trim();
 }
 
+// Comma-separated list of client IPs allowed to call the API. Empty = allow all.
+const ALLOWED_IPS = (process.env.ALLOWED_IP || '')
+    .split(',')
+    .map((ip) => ip.trim())
+    .filter(Boolean);
+
+// IPv4 clients often show up as IPv4-mapped IPv6 addresses (::ffff:1.2.3.4)
+const normalizeIp = (ip = '') => (ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, ''));
+
 const app = express();
 app.use(cors());
+
+if (ALLOWED_IPS.length > 0) {
+    app.use((req, res, next) => {
+        const clientIp = normalizeIp(req.socket.remoteAddress);
+        if (!ALLOWED_IPS.includes(clientIp)) {
+            console.warn(`Blocked request from ${clientIp} to ${req.path}`);
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        next();
+    });
+} else {
+    console.warn('ALLOWED_IP is not set: accepting requests from any IP.');
+}
+
 app.use(express.json());
 
 for (const endpoint of endpoints) {
