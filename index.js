@@ -75,12 +75,17 @@ const ALLOWED_IPS = (process.env.ALLOWED_IP || '')
 // IPv4 clients often show up as IPv4-mapped IPv6 addresses (::ffff:1.2.3.4)
 const normalizeIp = (ip = '') => (ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, ''));
 
+// Number of reverse proxies in front of the app (e.g. 1 on Cloud Run), so the
+// client IP is read from X-Forwarded-For instead of the proxy's address.
+const TRUST_PROXY = Number(process.env.TRUST_PROXY) || 0;
+
 const app = express();
+app.set('trust proxy', TRUST_PROXY);
 app.use(cors());
 
 if (ALLOWED_IPS.length > 0) {
     app.use((req, res, next) => {
-        const clientIp = normalizeIp(req.socket.remoteAddress);
+        const clientIp = normalizeIp(req.ip);
         if (!ALLOWED_IPS.includes(clientIp)) {
             console.warn(`Blocked request from ${clientIp} to ${req.path}`);
             return res.status(403).json({ error: 'Forbidden' });
